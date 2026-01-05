@@ -1,0 +1,401 @@
+/* --- CSS VARIABLES & THEME (ShadCN-like Dark Theme) --- */
+:root {
+    --background: #09090b;
+    --foreground: #fafafa;
+    
+    --card: #18181b;
+    --card-foreground: #fafafa;
+    
+    --popover: #18181b;
+    --popover-foreground: #fafafa;
+    
+    --primary: #fafafa;
+    --primary-foreground: #18181b;
+    
+    --secondary: #27272a;
+    --secondary-foreground: #fafafa;
+    
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    
+    --accent: #27272a;
+    --accent-foreground: #fafafa;
+    
+    --destructive: #7f1d1d;
+    --destructive-foreground: #fafafa;
+    
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #d4d4d8;
+    
+    --radius: 0.5rem;
+    
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll, manage inside containers */
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- LAYOUT --- */
+header {
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    justify-content: space-between;
+    background-color: rgba(9, 9, 11, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 50;
+}
+
+.brand {
+    font-weight: 700;
+    font-size: 1.125rem;
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.brand svg {
+    color: var(--foreground);
+}
+
+main {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr; /* Sidebar vs Preview */
+    height: calc(100vh - 60px);
+    overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+    main {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+}
+
+/* --- SIDEBAR (CONTROLS) --- */
+.controls-panel {
+    padding: 2rem;
+    border-right: 1px solid var(--border);
+    background-color: var(--background);
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    overflow-y: auto;
+    max-width: 100%;
+}
+
+.section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Tabs */
+.tabs-list {
+    display: inline-flex;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    background-color: var(--muted);
+    padding: 0.25rem;
+    color: var(--muted-foreground);
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.tab-trigger {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    border-radius: calc(var(--radius) - 0.125rem);
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+}
+
+.tab-trigger.active {
+    background-color: var(--background);
+    color: var(--foreground);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Inputs */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+textarea, input[type="text"], select {
+    width: 100%;
+    min-height: 2.5rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--input);
+    background-color: transparent;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+textarea:focus, input:focus, select:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 1px var(--ring);
+}
+
+textarea {
+    min-height: 100px;
+}
+
+/* File Upload */
+.file-drop-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 2rem;
+    border: 1px dashed var(--input);
+    border-radius: var(--radius);
+    transition: 0.2s;
+    cursor: pointer;
+    background-color: rgba(39, 39, 42, 0.3);
+    text-align: center;
+}
+
+.file-drop-area:hover {
+    border-color: var(--muted-foreground);
+    background-color: rgba(39, 39, 42, 0.5);
+}
+
+.file-msg {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    pointer-events: none;
+}
+
+.file-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    height: 2.5rem;
+    padding: 0 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--foreground);
+}
+.btn-outline:hover {
+    background-color: var(--accent);
+}
+
+/* --- PREVIEW AREA --- */
+.preview-panel {
+    background-color: #121214; /* Slightly lighter than bg */
+    background-image: radial-gradient(#27272a 1px, transparent 1px);
+    background-size: 20px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 2rem;
+    overflow: hidden;
+}
+
+/* The T-Shirt Container */
+.tshirt-container {
+    position: relative;
+    width: 500px;
+    height: 600px;
+    /* Ensures it fits on smaller screens */
+    max-width: 90%;
+    max-height: 80vh;
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
+    transition: transform 0.3s ease;
+}
+
+/* Realistic Imprint Layers */
+.tshirt-svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    pointer-events: none; /* Let clicks pass through if needed */
+}
+
+/* The Design Image - Clipped to shirt shape */
+.design-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    /* The pattern repeat ensures the texture looks natural if image is small */
+    object-fit: cover;
+}
+
+/* Shadows Overlay (Multiply mode for realism) */
+.shadows-overlay {
+    mix-blend-mode: multiply;
+    opacity: 0.6; /* Intensity of folds */
+}
+
+/* Highlight Overlay (Screen/Soft-light for sheen) */
+.highlights-overlay {
+    mix-blend-mode: screen;
+    opacity: 0.2;
+}
+
+/* --- UTILS & ANIMATIONS --- */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .5; }
+}
+
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(9,9,11,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    backdrop-filter: blur(2px);
+    border-radius: var(--radius);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--muted);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast Notification */
+.toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.toast {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    padding: 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1);
+    min-width: 300px;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
