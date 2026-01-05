@@ -104,11 +104,6 @@ function handleFile(file) {
 }
 
 // --- CONTROLS ---
-function updateObjectFit() {
-    const mode = document.getElementById('fit-mode').value;
-    designImage.style.objectFit = mode;
-}
-
 function changeShirtColor(color) {
     // Mapping colors to images
     const colorMap = {
