@@ -225,7 +225,7 @@ function handleFile(file) {
     const formData = new FormData();
     formData.append('image', file);
     
-    fetch('http://localhost:5000/api/remove-bg', {
+    fetch('/api/remove-bg', {
         method: 'POST',
         body: formData
     })
@@ -478,7 +478,7 @@ async function bakeDesign() {
         formData.append('height', editorState.designHeight);
         
         // Send to backend
-        const response = await fetch('http://localhost:5000/api/bake', {
+        const response = await fetch('/api/bake', {
             method: 'POST',
             body: formData
         });
@@ -521,6 +521,7 @@ function changeShirtColor(color) {
         // Update editor state if in upload mode
         if (editorState.mode === 'upload') {
             const img = new Image();
+            img.crossOrigin = "anonymous";
             img.onload = () => {
                 editorState.tshirtImage = img;
                 drawEditor();
@@ -581,6 +582,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize t-shirt image for editor
     if (tshirtBackground) {
         const tshirtImg = new Image();
+        tshirtImg.crossOrigin = "anonymous";
         tshirtImg.onload = () => {
             editorState.tshirtImage = tshirtImg;
         };
