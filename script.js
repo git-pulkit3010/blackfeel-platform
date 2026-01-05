@@ -113,7 +113,7 @@ function changeShirtColor(color) {
     // Mapping colors to images
     const colorMap = {
         '#ffffff': 'images/tshirt-white.png',
-        '#18181b': 'images/tshirt-black.png',
+        '#18181b': 'images/tshirt-black-nobg.png',
         '#7f1d1d': 'images/tshirt-red.png',
         '#2563eb': 'images/tshirt-blue.png'
     };
