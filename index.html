@@ -61,12 +61,43 @@
             <!-- UPLOAD MODE CONTENT -->
             <div id="tab-upload" class="tab-content">
                 <div class="file-drop-area" id="drop-area">
-                    <span class="file-msg">Drag & drop or click to upload image</span>
+                    <span class="file-msg">Drag & drop or click to upload design</span>
                     <input class="file-input" type="file" accept="image/*" id="file-input">
                 </div>
-                <div class="input-group" style="margin-top:1rem;">
-                    <label>Positioning</label>
-                    <input type="text" id="positioning-prompt" placeholder="Enter positioning prompt...">
+                
+                <!-- Editor Controls (hidden until image is uploaded) -->
+                <div id="editor-controls" style="display: none; margin-top: 1.5rem;">
+                    <div class="section-title">Design Controls</div>
+                    
+                    <div class="input-group">
+                        <label>Scale <span class="value-display"><span id="scaleValue">40</span>%</span></label>
+                        <input type="range" id="scale" min="10" max="80" value="40" style="width: 100%;">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Position</label>
+                        <div class="position-grid">
+                            <button class="position-btn" data-position="top_left">↖</button>
+                            <button class="position-btn" data-position="top">↑</button>
+                            <button class="position-btn" data-position="top_right">↗</button>
+                            <button class="position-btn" data-position="left">←</button>
+                            <button class="position-btn active" data-position="center">●</button>
+                            <button class="position-btn" data-position="right">→</button>
+                            <button class="position-btn" data-position="bottom_left">↙</button>
+                            <button class="position-btn" data-position="bottom">↓</button>
+                            <button class="position-btn" data-position="bottom_right">↘</button>
+                        </div>
+                    </div>
+
+                    <div class="editor-actions" style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                        <button class="btn btn-outline" id="reset-position" style="flex: 1;">Reset</button>
+                        <button class="btn btn-outline" id="download-preview" style="flex: 1;">Preview</button>
+                        <button class="btn btn-primary" id="bake-design" style="flex: 1;">Bake</button>
+                    </div>
+                </div>
+
+                <div class="info-text" style="margin-top: 1rem; font-size: 0.75rem; color: var(--muted-foreground);">
+                    <strong>Tip:</strong> Drag the design on the t-shirt to reposition it
                 </div>
             </div>
 
@@ -98,49 +129,48 @@
         </aside>
 
         <!-- Preview Area -->
-        <section class="preview-panel">
+<!-- Preview Area -->
+<section class="preview-panel">
 
-            <div class="tshirt-container" id="tshirt-container">
-                <!-- BASE T-SHIRT IMAGE -->
-                <img src="images/tshirt-white.png" alt="T-Shirt Base" class="tshirt-base" id="tshirt-background">
+    <div class="tshirt-container" id="tshirt-container">
+        <!-- Canvas for Editor (hidden in AI mode) -->
+        <canvas id="editor-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; display: none;"></canvas>
+        
+        <!-- Original T-Shirt View (for AI mode) -->
+        <div id="ai-view" style="position: relative; width: 100%; height: 100%;">
+            <img src="images/tshirt-white.png" alt="T-Shirt Base" class="tshirt-base" id="tshirt-background">
 
-                <!-- DESIGN LAYER (Masked by SVG path) -->
-                <!-- Removed default src -->
-                <img src="" alt="Design" class="design-layer" id="design-image"
-                    style="clip-path: url(#shirt-clip); opacity: 0;">
+            <!-- DESIGN LAYER (Masked by SVG path) -->
+            <img src="" alt="Design" class="design-layer" id="design-image"
+                style="clip-path: url(#shirt-clip); opacity: 0;">
 
-                <!-- SVG Definitions for Masking and Shape -->
-                <svg class="tshirt-svg" viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <!-- The shape of the t-shirt -->
-                        <clipPath id="shirt-clip">
-                            <path
-                                d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" />
-                        </clipPath>
+            <!-- SVG Definitions for Masking and Shape -->
+            <svg class="tshirt-svg" viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <!-- The shape of the t-shirt -->
+                    <clipPath id="shirt-clip">
+                        <path
+                            d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" />
+                    </clipPath>
 
-                        <!-- Gradient for base shirt color overlay -->
-                        <linearGradient id="shirt-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
-                            <stop offset="50%" style="stop-color:rgb(255,255,255);stop-opacity:0.05" />
-                            <stop offset="100%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
-                        </linearGradient>
-                    </defs>
+                    <!-- Gradient for base shirt color overlay -->
+                    <linearGradient id="shirt-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
+                        <stop offset="50%" style="stop-color:rgb(255,255,255);stop-opacity:0.05" />
+                        <stop offset="100%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
 
-                    <!-- Base Fabric Color Removed (Using Image) -->
+        <!-- Loading State -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner"></div>
+            <div id="loading-text" style="margin-top: 1rem; color: var(--foreground);">Processing...</div>
+        </div>
+    </div>
 
-
-                    <!-- Collar shadow removed -->
-
-                    <!-- Highlights (Screen mode) removed -->
-                </svg>
-
-                <!-- Loading State -->
-                <div class="loading-overlay" id="loading-overlay">
-                    <div class="spinner"></div>
-                </div>
-            </div>
-
-        </section>
+</section>
     </main>
 
     <!-- Toast Container -->

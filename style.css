@@ -157,6 +157,51 @@ main {
     gap: 1.5rem;
 }
 
+/* Editor Controls */
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.position-btn {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+    padding: 0;
+}
+
+.position-btn:hover {
+    border-color: var(--ring);
+    background: var(--secondary);
+}
+
+.position-btn.active {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+}
+
+.value-display {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--muted);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    color: var(--foreground);
+    margin-left: 0.5rem;
+}
+
 /* Inputs */
 .input-group {
     display: flex;
@@ -169,7 +214,7 @@ label {
     font-weight: 500;
 }
 
-textarea, input[type="text"], select {
+textarea, input[type="text"], select, input[type="range"] {
     width: 100%;
     min-height: 2.5rem;
     border-radius: var(--radius);
@@ -180,6 +225,25 @@ textarea, input[type="text"], select {
     color: var(--foreground);
     resize: vertical;
     transition: border-color 0.2s;
+}
+
+input[type="range"] {
+    padding: 0;
+    -webkit-appearance: none;
+    height: 6px;
+    background: var(--muted);
+    border-radius: 3px;
+    border: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid var(--background);
 }
 
 option {
@@ -328,18 +392,6 @@ textarea {
     object-fit: cover;
 }
 
-/* Shadows Overlay (Multiply mode for realism) */
-.shadows-overlay {
-    mix-blend-mode: multiply;
-    opacity: 0.6; /* Intensity of folds */
-}
-
-/* Highlight Overlay (Screen/Soft-light for sheen) */
-.highlights-overlay {
-    mix-blend-mode: screen;
-    opacity: 0.2;
-}
-
 /* --- UTILS & ANIMATIONS --- */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
@@ -354,12 +406,13 @@ textarea {
 .loading-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(9,9,11,0.8);
+    background: rgba(9,9,11,0.9);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 20;
-    backdrop-filter: blur(2px);
+    z-index: 30;
+    backdrop-filter: blur(4px);
     border-radius: var(--radius);
     opacity: 0;
     pointer-events: none;
