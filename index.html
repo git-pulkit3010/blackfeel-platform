@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI T-Shirt Designer</title>
+    <style>
+        /* --- CSS VARIABLES & THEME (ShadCN-like Dark Theme) --- */
+        :root {
+            --background: #09090b;
+            --foreground: #fafafa;
+            
+            --card: #18181b;
+            --card-foreground: #fafafa;
+            
+            --popover: #18181b;
+            --popover-foreground: #fafafa;
+            
+            --primary: #fafafa;
+            --primary-foreground: #18181b;
+            
+            --secondary: #27272a;
+            --secondary-foreground: #fafafa;
+            
+            --muted: #27272a;
+            --muted-foreground: #a1a1aa;
+            
+            --accent: #27272a;
+            --accent-foreground: #fafafa;
+            
+            --destructive: #7f1d1d;
+            --destructive-foreground: #fafafa;
+            
+            --border: #27272a;
+            --input: #27272a;
+            --ring: #d4d4d8;
+            
+            --radius: 0.5rem;
+            
+            --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--foreground);
+            font-family: var(--font-sans);
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll, manage inside containers */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- LAYOUT --- */
+        header {
+            height: 60px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            justify-content: space-between;
+            background-color: rgba(9, 9, 11, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 50;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 1.125rem;
+            letter-spacing: -0.025em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand svg {
+            color: var(--foreground);
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr; /* Sidebar vs Preview */
+            height: calc(100vh - 60px);
+            overflow: hidden;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+                overflow-y: auto;
+            }
+        }
+
+        /* --- SIDEBAR (CONTROLS) --- */
+        .controls-panel {
+            padding: 2rem;
+            border-right: 1px solid var(--border);
+            background-color: var(--background);
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            overflow-y: auto;
+            max-width: 100%;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--muted-foreground);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Tabs */
+        .tabs-list {
+            display: inline-flex;
+            height: 2.5rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            background-color: var(--muted);
+            padding: 0.25rem;
+            color: var(--muted-foreground);
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .tab-trigger {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            border-radius: calc(var(--radius) - 0.125rem);
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: transparent;
+        }
+
+        .tab-trigger.active {
+            background-color: var(--background);
+            color: var(--foreground);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Inputs */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        textarea, input[type="text"], select {
+            width: 100%;
+            min-height: 2.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--input);
+            background-color: transparent;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: var(--foreground);
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        
+        textarea:focus, input:focus, select:focus {
+            outline: none;
+            border-color: var(--ring);
+            box-shadow: 0 0 0 1px var(--ring);
+        }
+
+        textarea {
+            min-height: 100px;
+        }
+
+        /* File Upload */
+        .file-drop-area {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 2rem;
+            border: 1px dashed var(--input);
+            border-radius: var(--radius);
+            transition: 0.2s;
+            cursor: pointer;
+            background-color: rgba(39, 39, 42, 0.3);
+            text-align: center;
+        }
+
+        .file-drop-area:hover {
+            border-color: var(--muted-foreground);
+            background-color: rgba(39, 39, 42, 0.5);
+        }
+
+        .file-msg {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            pointer-events: none;
+        }
+
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            height: 2.5rem;
+            padding: 0 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--primary-foreground);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--foreground);
+        }
+        .btn-outline:hover {
+            background-color: var(--accent);
+        }
+
+        /* --- PREVIEW AREA --- */
+        .preview-panel {
+            background-color: #121214; /* Slightly lighter than bg */
+            background-image: radial-gradient(#27272a 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        /* The T-Shirt Container */
+        .tshirt-container {
+            position: relative;
+            width: 500px;
+            height: 600px;
+            /* Ensures it fits on smaller screens */
+            max-width: 90%;
+            max-height: 80vh;
+            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
+            transition: transform 0.3s ease;
+        }
+
+        /* Realistic Imprint Layers */
+        .tshirt-svg {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through if needed */
+        }
+
+        /* The Design Image - Clipped to shirt shape */
+        .design-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            /* The pattern repeat ensures the texture looks natural if image is small */
+            object-fit: cover;
+        }
+
+        /* Shadows Overlay (Multiply mode for realism) */
+        .shadows-overlay {
+            mix-blend-mode: multiply;
+            opacity: 0.6; /* Intensity of folds */
+        }
+        
+        /* Highlight Overlay (Screen/Soft-light for sheen) */
+        .highlights-overlay {
+            mix-blend-mode: screen;
+            opacity: 0.2;
+        }
+
+        /* --- UTILS & ANIMATIONS --- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(9,9,11,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            backdrop-filter: blur(2px);
+            border-radius: var(--radius);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--muted);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            color: var(--foreground);
+            padding: 1rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1);
+            min-width: 300px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z"/></svg>
+            AI Stylist
+        </div>
+        <div>
+            <button class="btn btn-outline" style="border:none;">Sign In</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Sidebar Controls -->
+        <aside class="controls-panel">
+            
+            <!-- Mode Tabs -->
+            <div class="tabs-list">
+                <button class="tab-trigger active" onclick="switchTab('ai')">AI Generate</button>
+                <button class="tab-trigger" onclick="switchTab('upload')">Upload Image</button>
+            </div>
+
+            <!-- AI MODE CONTENT -->
+            <div id="tab-ai" class="tab-content active">
+                <div class="input-group">
+                    <label for="prompt">Design Prompt</label>
+                    <textarea id="prompt" placeholder="E.g., A futuristic cyberpunk dragon in neon colors, vector style..."></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Style Preset</label>
+                    <select id="style-select">
+                        <option value="realistic">Realistic</option>
+                        <option value="vector">Vector / Flat</option>
+                        <option value="anime">Anime / Illustration</option>
+                        <option value="vintage">Vintage Retro</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="generateDesign()">
+                    <span id="gen-btn-text">Generate Design</span>
+                </button>
+            </div>
+
+            <!-- UPLOAD MODE CONTENT -->
+            <div id="tab-upload" class="tab-content">
+                <div class="file-drop-area" id="drop-area">
+                    <span class="file-msg">Drag & drop or click to upload image</span>
+                    <input class="file-input" type="file" accept="image/*" id="file-input">
+                </div>
+                <div class="input-group" style="margin-top:1rem;">
+                    <label>Fit Mode</label>
+                    <select id="fit-mode" onchange="updateObjectFit()">
+                        <option value="cover">Cover (Fill)</option>
+                        <option value="contain">Contain (Whole Image)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Settings Common -->
+            <div style="margin-top: auto; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                <div class="section-title">Product Details</div>
+                <div class="input-group">
+                    <label>Color</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#ffffff; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#ffffff')"></div>
+                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#18181b; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#18181b')"></div>
+                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#7f1d1d; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#7f1d1d')"></div>
+                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#2563eb; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#2563eb')"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button class="btn btn-outline" style="flex:1">Preview 3D</button>
+                    <button class="btn btn-primary" style="flex:1">Add to Cart</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Preview Area -->
+        <section class="preview-panel">
+            
+            <div class="tshirt-container" id="tshirt-container">
+                <!-- 
+                    Realistic T-Shirt Layering Logic:
+                    1. Background: The user image (masked)
+                    2. Middle: The base color of the shirt (masked)
+                    3. Top: SVG Shadows (multiply)
+                    4. Top: SVG Highlights (screen)
+                -->
+
+                <!-- DESIGN LAYER (Masked by SVG path) -->
+                <img src="https://picsum.photos/seed/art/800/800" alt="Design" class="design-layer" id="design-image" style="clip-path: url(#shirt-clip);">
+
+                <!-- SVG Definitions for Masking and Shape -->
+                <svg class="tshirt-svg" viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- The shape of the t-shirt -->
+                        <clipPath id="shirt-clip">
+                            <path d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" />
+                        </clipPath>
+                        
+                        <!-- Gradient for base shirt color overlay -->
+                        <linearGradient id="shirt-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
+                            <stop offset="50%" style="stop-color:rgb(255,255,255);stop-opacity:0.05" />
+                            <stop offset="100%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Base Fabric Color (Sits on top of design but below shadows) -->
+                    <path d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" 
+                          fill="white" opacity="0" id="shirt-base-color" style="mix-blend-mode: multiply; clip-path: url(#shirt-clip);" />
+
+                    <!-- Folds and Shadows (Multiply) -->
+                    <path class="shadows-overlay" d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" 
+                          fill="url(#shirt-gradient)" />
+                    
+                    <!-- More specific wrinkles -->
+                    <path class="shadows-overlay" d="M110,250 Q150,250 180,280 T250,320 T320,280 T390,250" fill="none" stroke="black" stroke-width="40" stroke-opacity="0.1" filter="blur(10px)" clip-path="url(#shirt-clip)" />
+                    
+                    <!-- Collar shadow -->
+                    <path class="shadows-overlay" d="M125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 L375,80 C375,80 340,130 250,130 C160,130 125,80 125,80 Z" fill="black" opacity="0.3" />
+
+                    <!-- Highlights (Screen mode) -->
+                    <path class="highlights-overlay" d="M125,150 L80,180 L130,220 Z" fill="white" opacity="0.4" />
+                    <path class="highlights-overlay" d="M375,150 L420,180 L370,220 Z" fill="white" opacity="0.4" />
+                </svg>
+
+                <!-- Loading State -->
+                <div class="loading-overlay" id="loading-overlay">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // --- CONSTANTS & STATE ---
+        const DEFAULT_IMAGE = "https://picsum.photos/seed/art/800/800";
+        const designImage = document.getElementById('design-image');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const promptInput = document.getElementById('prompt');
+        const shirtBaseColor = document.getElementById('shirt-base-color');
+
+        // --- TAB SWITCHING ---
+        function switchTab(mode) {
+            // Update Buttons
+            document.querySelectorAll('.tab-trigger').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update Content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`tab-${mode}`).classList.add('active');
+        }
+
+        // --- AI GENERATION SIMULATION ---
+        function generateDesign() {
+            const prompt = promptInput.value.trim();
+            
+            if (!prompt) {
+                showToast("Please enter a prompt first.", "error");
+                promptInput.focus();
+                return;
+            }
+
+            // Start Loading
+            setLoading(true);
+
+            // Simulate API Latency (2 seconds)
+            setTimeout(() => {
+                // Generate a seed from prompt to make it feel deterministic (same prompt = same image)
+                const seed = prompt.replace(/\s/g, '').toLowerCase();
+                // Using picsum to simulate generated result. 
+                // In a real app, this would be: const result = await api.generate(prompt);
+                const newImageUrl = `https://picsum.photos/seed/${seed}/800/800.jpg`;
+
+                // Update Image
+                updateImage(newImageUrl);
+                
+                setLoading(false);
+                showToast("Design generated successfully!");
+            }, 2000);
+        }
+
+        function updateImage(url) {
+            designImage.style.opacity = '0';
+            setTimeout(() => {
+                designImage.src = url;
+                designImage.onload = () => {
+                    designImage.style.opacity = '1';
+                };
+            }, 200);
+        }
+
+        // --- IMAGE UPLOAD ---
+        const fileInput = document.getElementById('file-input');
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // Drag and Drop
+        const dropArea = document.getElementById('drop-area');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+        dropArea.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const file = dt.files[0];
+            handleFile(file);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast("Please upload an image file.", "error");
+                return;
+            }
+
+            setLoading(true); // Briefly load to show processing
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                updateImage(e.target.result);
+                setLoading(false);
+                showToast("Image uploaded to shirt.");
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // --- CONTROLS ---
+        function updateObjectFit() {
+            const mode = document.getElementById('fit-mode').value;
+            designImage.style.objectFit = mode;
+        }
+
+        function changeShirtColor(color) {
+            // We use the shirt-base-color path which sits on top of the design with 'multiply' blend mode
+            // to tint the design without hiding it completely.
+            
+            // If white, remove tint
+            if (color.toLowerCase() === '#ffffff') {
+                shirtBaseColor.setAttribute('fill', '#ffffff');
+                shirtBaseColor.setAttribute('opacity', '0'); // No tint needed for white shirt
+            } else {
+                shirtBaseColor.setAttribute('fill', color);
+                shirtBaseColor.setAttribute('opacity', '0.4'); // Tint strength
+            }
+        }
+
+        // --- UTILS ---
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loadingOverlay.classList.add('active');
+                // Disable buttons
+                document.querySelectorAll('button').forEach(b => b.disabled = true);
+            } else {
+                loadingOverlay.classList.remove('active');
+                // Enable buttons
+                document.querySelectorAll('button').forEach(b => b.disabled = false);
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            
+            // Icon
+            let icon = '';
+            if (type === 'success') {
+                icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else {
+                icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+            }
+
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+            container.appendChild(toast);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
