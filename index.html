@@ -1,17 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI T-Shirt Designer</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <!-- Header -->
     <header>
         <div class="brand">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                    d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
+            </svg>
             BlackFeel Platform
         </div>
         <div>
@@ -22,7 +28,7 @@
     <main>
         <!-- Sidebar Controls -->
         <aside class="controls-panel">
-            
+
             <!-- Mode Tabs -->
             <div class="tabs-list">
                 <button class="tab-trigger active" onclick="switchTab('ai')">AI Generate</button>
@@ -33,7 +39,8 @@
             <div id="tab-ai" class="tab-content active">
                 <div class="input-group">
                     <label for="prompt">Design Prompt</label>
-                    <textarea id="prompt" placeholder="E.g., A futuristic cyberpunk dragon in neon colors, vector style..."></textarea>
+                    <textarea id="prompt"
+                        placeholder="E.g., A futuristic cyberpunk dragon in neon colors, vector style..."></textarea>
                 </div>
 
                 <div class="input-group">
@@ -72,10 +79,18 @@
                 <div class="input-group">
                     <label>Color</label>
                     <div style="display: flex; gap: 0.5rem;">
-                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#ffffff; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#ffffff')"></div>
-                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#18181b; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#18181b')"></div>
-                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#7f1d1d; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#7f1d1d')"></div>
-                        <div class="color-swatch" style="width:30px; height:30px; border-radius:50%; background:#2563eb; border:1px solid #333; cursor:pointer;" onclick="changeShirtColor('#2563eb')"></div>
+                        <div class="color-swatch"
+                            style="width:30px; height:30px; border-radius:50%; background:#ffffff; border:1px solid #333; cursor:pointer;"
+                            onclick="changeShirtColor('#ffffff')"></div>
+                        <div class="color-swatch"
+                            style="width:30px; height:30px; border-radius:50%; background:#18181b; border:1px solid #333; cursor:pointer;"
+                            onclick="changeShirtColor('#18181b')"></div>
+                        <div class="color-swatch"
+                            style="width:30px; height:30px; border-radius:50%; background:#7f1d1d; border:1px solid #333; cursor:pointer;"
+                            onclick="changeShirtColor('#7f1d1d')"></div>
+                        <div class="color-swatch"
+                            style="width:30px; height:30px; border-radius:50%; background:#2563eb; border:1px solid #333; cursor:pointer;"
+                            onclick="changeShirtColor('#2563eb')"></div>
                     </div>
                 </div>
                 <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
@@ -87,19 +102,25 @@
 
         <!-- Preview Area -->
         <section class="preview-panel">
-            
+
             <div class="tshirt-container" id="tshirt-container">
+                <!-- BASE T-SHIRT IMAGE -->
+                <img src="images/tshirt-white.png" alt="T-Shirt Base" class="tshirt-base" id="tshirt-background">
+
                 <!-- DESIGN LAYER (Masked by SVG path) -->
-                <img src="https://picsum.photos/seed/art/800/800" alt="Design" class="design-layer" id="design-image" style="clip-path: url(#shirt-clip);">
+                <!-- Removed default src -->
+                <img src="" alt="Design" class="design-layer" id="design-image"
+                    style="clip-path: url(#shirt-clip); opacity: 0;">
 
                 <!-- SVG Definitions for Masking and Shape -->
                 <svg class="tshirt-svg" viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <!-- The shape of the t-shirt -->
                         <clipPath id="shirt-clip">
-                            <path d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" />
+                            <path
+                                d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" />
                         </clipPath>
-                        
+
                         <!-- Gradient for base shirt color overlay -->
                         <linearGradient id="shirt-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" style="stop-color:rgb(0,0,0);stop-opacity:0.1" />
@@ -108,19 +129,22 @@
                         </linearGradient>
                     </defs>
 
-                    <!-- Base Fabric Color (Sits on top of design but below shadows) -->
-                    <path d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" 
-                          fill="white" opacity="0" id="shirt-base-color" style="mix-blend-mode: multiply; clip-path: url(#shirt-clip);" />
+                    <!-- Base Fabric Color Removed (Using Image) -->
 
                     <!-- Folds and Shadows (Multiply) -->
-                    <path class="shadows-overlay" d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z" 
-                          fill="url(#shirt-gradient)" />
-                    
+                    <path class="shadows-overlay"
+                        d="M375,60 L375,150 L460,150 L460,250 L390,250 L390,550 L110,550 L110,250 L40,250 L40,150 L125,150 L125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 Z"
+                        fill="url(#shirt-gradient)" />
+
                     <!-- More specific wrinkles -->
-                    <path class="shadows-overlay" d="M110,250 Q150,250 180,280 T250,320 T320,280 T390,250" fill="none" stroke="black" stroke-width="40" stroke-opacity="0.1" filter="blur(10px)" clip-path="url(#shirt-clip)" />
-                    
+                    <path class="shadows-overlay" d="M110,250 Q150,250 180,280 T250,320 T320,280 T390,250" fill="none"
+                        stroke="black" stroke-width="40" stroke-opacity="0.1" filter="blur(10px)"
+                        clip-path="url(#shirt-clip)" />
+
                     <!-- Collar shadow -->
-                    <path class="shadows-overlay" d="M125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 L375,80 C375,80 340,130 250,130 C160,130 125,80 125,80 Z" fill="black" opacity="0.3" />
+                    <path class="shadows-overlay"
+                        d="M125,60 C125,60 160,110 250,110 C340,110 375,60 375,60 L375,80 C375,80 340,130 250,130 C160,130 125,80 125,80 Z"
+                        fill="black" opacity="0.3" />
 
                     <!-- Highlights (Screen mode) -->
                     <path class="highlights-overlay" d="M125,150 L80,180 L130,220 Z" fill="white" opacity="0.4" />
@@ -141,4 +165,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

@@ -1,9 +1,9 @@
 // --- CONSTANTS & STATE ---
-const DEFAULT_IMAGE = "https://picsum.photos/seed/art/800/800";
+const DEFAULT_IMAGE = ""; // No default design
 const designImage = document.getElementById('design-image');
 const loadingOverlay = document.getElementById('loading-overlay');
 const promptInput = document.getElementById('prompt');
-const shirtBaseColor = document.getElementById('shirt-base-color');
+const tshirtBackground = document.getElementById('tshirt-background');
 
 // --- TAB SWITCHING ---
 function switchTab(mode) {
@@ -19,7 +19,7 @@ function switchTab(mode) {
 // --- AI GENERATION SIMULATION ---
 function generateDesign() {
     const prompt = promptInput.value.trim();
-    
+
     if (!prompt) {
         showToast("Please enter a prompt first.", "error");
         promptInput.focus();
@@ -39,7 +39,7 @@ function generateDesign() {
 
         // Update Image
         updateImage(newImageUrl);
-        
+
         setLoading(false);
         showToast("Design generated successfully!");
     }, 2000);
@@ -61,7 +61,7 @@ const fileInput = document.getElementById('file-input');
 // Initialize drag and drop and file input listeners
 function initializeUploadListeners() {
     // File input change listener
-    fileInput.addEventListener('change', function(e) {
+    fileInput.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (file) {
             handleFile(file);
@@ -74,9 +74,9 @@ function initializeUploadListeners() {
         dropArea.addEventListener(eventName, preventDefaults, false);
     });
 
-    function preventDefaults(e) { 
-        e.preventDefault(); 
-        e.stopPropagation(); 
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
     }
 
     dropArea.addEventListener('drop', (e) => {
@@ -93,9 +93,9 @@ function handleFile(file) {
     }
 
     setLoading(true); // Briefly load to show processing
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         updateImage(e.target.result);
         setLoading(false);
         showToast("Image uploaded to shirt.");
@@ -110,16 +110,17 @@ function updateObjectFit() {
 }
 
 function changeShirtColor(color) {
-    // We use the shirt-base-color path which sits on top of the design with 'multiply' blend mode
-    // to tint the design without hiding it completely.
-    
-    // If white, remove tint
-    if (color.toLowerCase() === '#ffffff') {
-        shirtBaseColor.setAttribute('fill', '#ffffff');
-        shirtBaseColor.setAttribute('opacity', '0'); // No tint needed for white shirt
-    } else {
-        shirtBaseColor.setAttribute('fill', color);
-        shirtBaseColor.setAttribute('opacity', '0.4'); // Tint strength
+    // Mapping colors to images
+    const colorMap = {
+        '#ffffff': 'images/tshirt-white.png',
+        '#18181b': 'images/tshirt-black.png',
+        '#7f1d1d': 'images/tshirt-red.png',
+        '#2563eb': 'images/tshirt-blue.png'
+    };
+
+    const imagePath = colorMap[color];
+    if (imagePath) {
+        tshirtBackground.src = imagePath;
     }
 }
 
@@ -140,7 +141,7 @@ function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
-    
+
     // Icon
     let icon = '';
     if (type === 'success') {
@@ -161,6 +162,6 @@ function showToast(message, type = 'success') {
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeUploadListeners();
 });

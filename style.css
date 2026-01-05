@@ -300,7 +300,18 @@ textarea {
     top: 0;
     left: 0;
     z-index: 10;
-    pointer-events: none; /* Let clicks pass through if needed */
+    pointer-events: none;
+}
+
+/* Base T-Shirt Image */
+.tshirt-base {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    object-fit: cover;
 }
 
 /* The Design Image - Clipped to shirt shape */
