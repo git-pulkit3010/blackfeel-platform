@@ -134,6 +134,17 @@ def bake_design():
         # 3. Bake
         final_image_bytes = bake_with_fal(composite, mask, position)
         
+        # --- NEW: Remove background from the final result ---
+        print("[API] Removing background from final baked result...")
+        final_pil = Image.open(io.BytesIO(final_image_bytes))
+        final_clean = remove_background_local(final_pil, "final result")
+        
+        # Convert back to bytes for saving
+        img_byte_arr = io.BytesIO()
+        final_clean.save(img_byte_arr, format='PNG')
+        final_image_bytes = img_byte_arr.getvalue()
+        # ----------------------------------------------------
+
         # 4. Save
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_filename = f"tshirt_final_{timestamp}.png"

@@ -4,6 +4,7 @@ const designImage = document.getElementById('design-image');
 const loadingOverlay = document.getElementById('loading-overlay');
 const promptInput = document.getElementById('prompt');
 const tshirtBackground = document.getElementById('tshirt-background');
+const generatedHistory = []; // Store generated/baked images
 
 // --- EDITOR STATE ---
 let editorState = {
@@ -18,7 +19,8 @@ let editorState = {
     designScale: 0.4,
     designPosition: 'manual', // Changed to manual by default
     designWidth: 0,
-    designHeight: 0
+    designHeight: 0,
+    showingResult: false
 };
 
 // --- CANVAS SETUP ---
@@ -39,6 +41,7 @@ function switchTab(mode) {
     
     // Update mode and UI
     editorState.mode = mode;
+    editorState.showingResult = false;
     updatePreviewMode();
 }
 
@@ -46,6 +49,18 @@ function updatePreviewMode() {
     const editorControls = document.getElementById('editor-controls');
     const editorCanvas = document.getElementById('editor-canvas');
     const aiView = document.getElementById('ai-view');
+    const resultView = document.getElementById('result-view');
+    
+    // Reset result view
+    if (resultView) resultView.style.display = 'none';
+
+    if (editorState.showingResult) {
+        editorControls.style.display = 'block'; // Keep controls visible
+        editorCanvas.style.display = 'none';
+        if (aiView) aiView.style.display = 'none';
+        if (resultView) resultView.style.display = 'block';
+        return;
+    }
     
     if (editorState.mode === 'upload' && editorState.designImage) {
         // Show editor controls and canvas, hide AI view
@@ -504,11 +519,26 @@ async function bakeDesign() {
             setLoading(false);
             showToast("Design baked successfully!", "success");
             
-            // Download the baked image
-            const link = document.createElement('a');
-            link.href = `http://localhost:5000${data.image_url}`;
-            link.download = 'tshirt-final.png';
-            link.click();
+            const imageUrl = `http://localhost:5000${data.image_url}`;
+            
+            // 1. Store result
+            generatedHistory.push({
+                timestamp: new Date().toISOString(),
+                image: imageUrl
+            });
+            
+            // 2. Update UI to show result
+            const resultImg = document.getElementById('result-image');
+            if (resultImg) resultImg.src = imageUrl;
+            
+            editorState.showingResult = true;
+            updatePreviewMode();
+
+            // 3. Download the baked image (Optional backup)
+            // const link = document.createElement('a');
+            // link.href = imageUrl;
+            // link.download = 'tshirt-final.png';
+            // link.click();
         } else {
             throw new Error(data.error || "Baking failed");
         }
