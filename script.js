@@ -16,7 +16,7 @@ let editorState = {
     designX: 0,
     designY: 0,
     designScale: 0.4,
-    designPosition: 'center',
+    designPosition: 'manual', // Changed to manual by default
     designWidth: 0,
     designHeight: 0
 };
@@ -181,13 +181,11 @@ function initializeUploadListeners() {
     // Reset button
     resetBtn.addEventListener('click', () => {
         editorState.designScale = 0.4;
-        editorState.designPosition = 'center';
+        editorState.designPosition = 'manual';
         editorState.designX = 0;
         editorState.designY = 0;
         scaleSlider.value = 40;
         scaleValue.textContent = '40';
-        positionBtns.forEach(b => b.classList.remove('active'));
-        document.querySelector('[data-position="center"]').classList.add('active');
         calculateDesignPosition();
         drawEditor();
         showToast("Design position reset", "success");
@@ -299,23 +297,40 @@ function handleFile(file) {
 
 function calculateDesignPosition() {
     if (!editorState.designImage || !editorState.tshirtImage) return;
-    
+
     const tshirtWidth = editorState.tshirtImage.naturalWidth || 500;
     const tshirtHeight = editorState.tshirtImage.naturalHeight || 600;
-    
+
     // Calculate size based on scale
     const imgAspect = editorState.designImage.width / editorState.designImage.height;
     const baseSize = Math.min(tshirtWidth, tshirtHeight) * editorState.designScale;
-    
+
     editorState.designWidth = Math.round(baseSize);
     editorState.designHeight = Math.round(baseSize / imgAspect);
-    
+
     // Position based on mode
     if (editorState.designPosition === 'manual') {
-        // Keep current manual position
+        // Keep current manual position, but ensure it's initialized to center if not set
+        if (editorState.designX === 0 && editorState.designY === 0) {
+            // Initialize to center position if not already set
+            const posMap = {
+                'top_left': { x: 0.1, y: 0.1 },
+                'top': { x: 0.5, y: 0.1 },
+                'top_right': { x: 0.9, y: 0.1 },
+                'left': { x: 0.1, y: 0.5 },
+                'center': { x: 0.5, y: 0.5 },
+                'right': { x: 0.9, y: 0.5 },
+                'bottom_left': { x: 0.1, y: 0.8 },
+                'bottom': { x: 0.5, y: 0.8 },
+                'bottom_right': { x: 0.9, y: 0.8 }
+            };
+            const pos = posMap['center'];
+            editorState.designX = Math.round(tshirtWidth * pos.x - editorState.designWidth / 2);
+            editorState.designY = Math.round(tshirtHeight * pos.y - editorState.designHeight / 2);
+        }
         return;
     }
-    
+
     // Calculate position based on preset
     const posMap = {
         'top_left': { x: 0.1, y: 0.1 },
@@ -328,7 +343,7 @@ function calculateDesignPosition() {
         'bottom': { x: 0.5, y: 0.8 },
         'bottom_right': { x: 0.9, y: 0.8 }
     };
-    
+
     const pos = posMap[editorState.designPosition] || posMap['center'];
     editorState.designX = Math.round(tshirtWidth * pos.x - editorState.designWidth / 2);
     editorState.designY = Math.round(tshirtHeight * pos.y - editorState.designHeight / 2);
@@ -378,11 +393,11 @@ function drawEditor() {
 
 function startDrag(e) {
     if (!editorState.designImage || !canvas) return;
-    
+
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     // Check if click is on the design
     const scaleX = canvas.width / (editorState.tshirtImage.naturalWidth || 500);
     const scaleY = canvas.height / (editorState.tshirtImage.naturalHeight || 600);
@@ -390,7 +405,7 @@ function startDrag(e) {
     const canvasY = editorState.designY * scaleY;
     const canvasWidth = editorState.designWidth * scaleX;
     const canvasHeight = editorState.designHeight * scaleY;
-    
+
     if (x >= canvasX && x <= canvasX + canvasWidth &&
         y >= canvasY && y <= canvasY + canvasHeight) {
         editorState.isDragging = true;
@@ -589,23 +604,6 @@ document.addEventListener('DOMContentLoaded', function () {
         tshirtImg.src = tshirtBackground.src;
     }
     
-    // Add manual position button if not exists
-    if (!document.querySelector('[data-position="manual"]')) {
-        const manualBtn = document.createElement('button');
-        manualBtn.className = 'position-btn';
-        manualBtn.dataset.position = 'manual';
-        manualBtn.textContent = '✋';
-        manualBtn.title = 'Manual (drag to position)';
-        const positionGrid = document.querySelector('.position-grid');
-        if (positionGrid) {
-            positionGrid.appendChild(manualBtn);
-            manualBtn.addEventListener('click', () => {
-                positionBtns.forEach(b => b.classList.remove('active'));
-                manualBtn.classList.add('active');
-                editorState.designPosition = 'manual';
-            });
-        }
-    }
     
     // Initial update of preview mode
     updatePreviewMode();
