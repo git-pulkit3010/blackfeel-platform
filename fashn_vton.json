@@ -1,0 +1,11 @@
+{
+  "model_image": "https://storage.googleapis.com/falserverless/example_inputs/model.png",
+  "garment_image": "https://v3b.fal.media/files/b/0a8988e8/UfKfedqkVGotZPIMApjAq_temp_composite.png",
+  "category": "tops",
+  "mode": "balanced",
+  "garment_photo_type": "flat-lay",
+  "moderation_level": "permissive",
+  "num_samples": 1,
+  "segmentation_free": true,
+  "output_format": "png"
+}
