@@ -185,8 +185,8 @@ def vton_api():
             garment_url = fal_client.upload(image_data, "image/png")
             
         # Upload custom model image to Fal
-        print("[VTON] Uploading custom model image (images/man_model.jpg) to Fal...")
-        with open("images/man_model.jpg", "rb") as f:
+        print("[VTON] Uploading custom model image (images/man_model.png) to Fal...")
+        with open("images/man_model.png", "rb") as f:
             model_image_data = f.read()
             model_url = fal_client.upload(model_image_data, "image/jpeg")
 
