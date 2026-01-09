@@ -112,7 +112,7 @@
                 </div>
                 <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
                     <button class="btn btn-outline" style="flex:1">Add to Cart</button>
-                    <button class="btn btn-primary" style="flex:1">Virtual Try On</button>
+                    <button class="btn btn-primary" id="vton-btn" style="flex:1" disabled>Virtual Try On</button>
                 </div>
             </div>
         </aside>
@@ -154,7 +154,17 @@
 
         <!-- Result View (Hidden by default) -->
         <div id="result-view" style="position: relative; width: 100%; height: 100%; display: none;">
-             <img id="result-image" src="" alt="Baked Result" style="width: 100%; height: 100%; object-fit: contain;">
+             <!-- Slideshow Wrapper -->
+             <div class="slideshow-wrapper" style="width: 100%; height: 100%; position: relative;">
+                <img id="result-image" src="" alt="Baked Result" class="slide active" style="width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; transition: opacity 0.5s;">
+                <img id="vton-image" src="" alt="Virtual Try-On" class="slide" style="width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.5s;">
+             </div>
+             
+             <!-- Slideshow Controls (Hidden until VTON is ready) -->
+             <div id="slideshow-controls" style="position: absolute; bottom: 20px; left: 0; right: 0; display: none; justify-content: center; gap: 10px; z-index: 10;">
+                <button class="slide-dot active" onclick="switchSlide(0)"></button>
+                <button class="slide-dot" onclick="switchSlide(1)"></button>
+             </div>
         </div>
 
         <!-- Loading State -->

@@ -155,11 +155,59 @@ def bake_design():
         
         return jsonify({
             "success": True,
-            "image_url": f"/api/download/{output_filename}"
+            "image_url": f"/api/download/{output_filename}",
+            "filename": output_filename
         }), 200
         
     except Exception as e:
         print(f"[API] Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+import json
+
+@app.route('/api/vton', methods=['POST'])
+def vton_api():
+    try:
+        data = request.json
+        filename = data.get('filename')
+        
+        if not filename:
+            return jsonify({"error": "Missing filename"}), 400
+            
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        if not os.path.exists(file_path):
+             return jsonify({"error": "File not found"}), 404
+
+        print(f"[VTON] Uploading {filename} to Fal...")
+        # Upload garment image to Fal
+        with open(file_path, "rb") as f:
+            image_data = f.read()
+            garment_url = fal_client.upload(image_data, "image/png")
+            
+        print(f"[VTON] Calling fal-ai/fashn/tryon/v1.6...")
+        
+        # Load config from file
+        with open('fashn_vton.json', 'r') as f:
+            arguments = json.load(f)
+            
+        # OVERRIDE garment_image with the actual baked image
+        arguments["garment_image"] = garment_url
+        
+        result = fal_client.subscribe(
+            "fal-ai/fashn/tryon/v1.6",
+            arguments=arguments
+        )
+        
+        final_url = result["images"][0]["url"]
+        print(f"[VTON] Success! Result: {final_url}")
+        
+        return jsonify({
+            "success": True,
+            "image_url": final_url
+        }), 200
+        
+    except Exception as e:
+        print(f"[VTON] Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/remove-bg', methods=['POST'])

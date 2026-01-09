@@ -392,6 +392,27 @@ textarea {
     object-fit: cover;
 }
 
+/* Slideshow Controls */
+.slide-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.3);
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    padding: 0;
+}
+
+.slide-dot.active {
+    background-color: var(--primary);
+    transform: scale(1.2);
+}
+
+.slide-dot:hover {
+    background-color: rgba(255, 255, 255, 0.6);
+}
+
 /* --- UTILS & ANIMATIONS --- */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }

@@ -5,6 +5,7 @@ const loadingOverlay = document.getElementById('loading-overlay');
 const promptInput = document.getElementById('prompt');
 const tshirtBackground = document.getElementById('tshirt-background');
 const generatedHistory = []; // Store generated/baked images
+let currentBakedFilename = null; // Store current baked filename for VTON
 
 // --- EDITOR STATE ---
 let editorState = {
@@ -28,6 +29,30 @@ const canvas = document.getElementById('editor-canvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 500;
 canvas.height = 600;
+
+// --- SLIDESHOW FUNCTIONS ---
+window.switchSlide = function(index) {
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.slide-dot');
+    
+    slides.forEach((slide, i) => {
+        if (i === index) {
+            slide.style.opacity = '1';
+            slide.classList.add('active');
+        } else {
+            slide.style.opacity = '0';
+            slide.classList.remove('active');
+        }
+    });
+    
+    dots.forEach((dot, i) => {
+        if (i === index) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+};
 
 // --- TAB SWITCHING ---
 function switchTab(mode) {
@@ -146,6 +171,7 @@ const positionBtns = document.querySelectorAll('.position-btn');
 const resetBtn = document.getElementById('reset-position');
 const downloadBtn = document.getElementById('download-preview');
 const bakeBtn = document.getElementById('bake-design');
+const vtonBtn = document.getElementById('vton-btn');
 
 // Initialize upload listeners
 function initializeUploadListeners() {
@@ -218,6 +244,11 @@ function initializeUploadListeners() {
     
     // Bake design button
     bakeBtn.addEventListener('click', bakeDesign);
+    
+    // VTON button
+    if (vtonBtn) {
+        vtonBtn.addEventListener('click', performVTON);
+    }
     
     // Canvas mouse events for dragging
     canvas.addEventListener('mousedown', startDrag);
@@ -527,18 +558,34 @@ async function bakeDesign() {
                 image: imageUrl
             });
             
+            // Store filename for VTON
+            currentBakedFilename = data.filename;
+            if (vtonBtn) {
+                vtonBtn.disabled = false;
+            }
+            
             // 2. Update UI to show result
             const resultImg = document.getElementById('result-image');
-            if (resultImg) resultImg.src = imageUrl;
+            const vtonImg = document.getElementById('vton-image');
+            const controls = document.getElementById('slideshow-controls');
+            
+            if (resultImg) {
+                resultImg.src = imageUrl;
+                resultImg.classList.add('active');
+                resultImg.style.opacity = '1';
+            }
+            if (vtonImg) {
+                vtonImg.src = "";
+                vtonImg.classList.remove('active');
+                vtonImg.style.opacity = '0';
+            }
+            if (controls) {
+                controls.style.display = 'none'; // Hide controls until VTON is done
+            }
             
             editorState.showingResult = true;
             updatePreviewMode();
 
-            // 3. Download the baked image (Optional backup)
-            // const link = document.createElement('a');
-            // link.href = imageUrl;
-            // link.download = 'tshirt-final.png';
-            // link.click();
         } else {
             throw new Error(data.error || "Baking failed");
         }
@@ -546,6 +593,56 @@ async function bakeDesign() {
         setLoading(false);
         showToast(`Error: ${error.message}`, "error");
         console.error("Baking error:", error);
+    }
+}
+
+async function performVTON() {
+    if (!currentBakedFilename) {
+        showToast("Please bake a design first", "error");
+        return;
+    }
+    
+    setLoading(true, "Virtual Try-On in progress...");
+    
+    try {
+        const response = await fetch('/api/vton', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: currentBakedFilename })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            setLoading(false);
+            showToast("Virtual Try-On successful!", "success");
+            
+            const vtonUrl = data.image_url;
+            
+            // Update VTON image
+            const vtonImg = document.getElementById('vton-image');
+            if (vtonImg) {
+                vtonImg.src = vtonUrl;
+            }
+            
+            // Show controls and switch to VTON slide
+            const controls = document.getElementById('slideshow-controls');
+            if (controls) {
+                controls.style.display = 'flex';
+            }
+            
+            // Automatically switch to the VTON result
+            window.switchSlide(1);
+            
+        } else {
+            throw new Error(data.error || "Virtual Try-On failed");
+        }
+    } catch (error) {
+        setLoading(false);
+        showToast(`Error: ${error.message}`, "error");
+        console.error("VTON error:", error);
     }
 }
 
