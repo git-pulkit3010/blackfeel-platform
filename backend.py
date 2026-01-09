@@ -227,12 +227,23 @@ def vton_api():
         except Exception:
              vton_filename = f"vton_{filename}"
 
-        # 3. Download and Save
+        # 3. Download and process the VTON result
         response = requests.get(final_url)
+        
+        # Remove background from the VTON result
+        print("[VTON] Removing background from VTON result...")
+        vton_pil = Image.open(io.BytesIO(response.content))
+        vton_clean = remove_background_local(vton_pil, "VTON result")
+        
+        # Convert back to bytes for saving
+        img_byte_arr = io.BytesIO()
+        vton_clean.save(img_byte_arr, format='PNG')
+        processed_content = img_byte_arr.getvalue()
+        
         vton_path = os.path.join(vton_dir, vton_filename)
         
         with open(vton_path, "wb") as f:
-            f.write(response.content)
+            f.write(processed_content)
             
         print(f"[VTON] Saved locally to {vton_path}")
 
