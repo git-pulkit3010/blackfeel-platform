@@ -184,14 +184,21 @@ def vton_api():
             image_data = f.read()
             garment_url = fal_client.upload(image_data, "image/png")
             
+        # Upload custom model image to Fal
+        print("[VTON] Uploading custom model image (images/man_model.jpg) to Fal...")
+        with open("images/man_model.jpg", "rb") as f:
+            model_image_data = f.read()
+            model_url = fal_client.upload(model_image_data, "image/jpeg")
+
         print(f"[VTON] Calling fal-ai/fashn/tryon/v1.6...")
         
         # Load config from file
         with open('fashn_vton.json', 'r') as f:
             arguments = json.load(f)
             
-        # OVERRIDE garment_image with the actual baked image
+        # OVERRIDE garment_image and model_image
         arguments["garment_image"] = garment_url
+        arguments["model_image"] = model_url
         
         result = fal_client.subscribe(
             "fal-ai/fashn/tryon/v1.6",
