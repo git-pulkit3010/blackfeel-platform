@@ -201,9 +201,37 @@ def vton_api():
         final_url = result["images"][0]["url"]
         print(f"[VTON] Success! Result: {final_url}")
         
+        # --- Save Locally ---
+        # 1. Create VTON dir
+        vton_dir = os.path.join(UPLOAD_DIR, 'VTON')
+        os.makedirs(vton_dir, exist_ok=True)
+        
+        # 2. Extract timestamp/ID from input filename
+        # Expected: tshirt_final_{timestamp}.png
+        # We want: vton_{timestamp}.png
+        try:
+            # simple parsing: remove "tshirt_final_" prefix and keep extension or replace it
+            if filename.startswith("tshirt_final_"):
+                timestamp_part = filename.replace("tshirt_final_", "")
+                vton_filename = f"vton_{timestamp_part}"
+            else:
+                # Fallback if naming convention differs
+                vton_filename = f"vton_{filename}"
+        except Exception:
+             vton_filename = f"vton_{filename}"
+
+        # 3. Download and Save
+        response = requests.get(final_url)
+        vton_path = os.path.join(vton_dir, vton_filename)
+        
+        with open(vton_path, "wb") as f:
+            f.write(response.content)
+            
+        print(f"[VTON] Saved locally to {vton_path}")
+
         return jsonify({
             "success": True,
-            "image_url": final_url
+            "image_url": f"/api/download/vton/{vton_filename}"
         }), 200
         
     except Exception as e:
@@ -227,6 +255,11 @@ def remove_bg_api():
 @app.route('/api/download/<filename>', methods=['GET'])
 def download_image(filename):
     return send_from_directory(UPLOAD_DIR, filename)
+
+@app.route('/api/download/vton/<filename>', methods=['GET'])
+def download_vton_image(filename):
+    vton_dir = os.path.join(UPLOAD_DIR, 'VTON')
+    return send_from_directory(vton_dir, filename)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
