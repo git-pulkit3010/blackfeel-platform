@@ -3,3 +3,4 @@ venv/
 node_modules/
 index_full.html
 uploads/
+daily_sync.sh
