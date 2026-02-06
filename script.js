@@ -78,24 +78,30 @@ function updatePreviewMode() {
     const editorCanvas = document.getElementById('editor-canvas');
     const aiView = document.getElementById('ai-view');
     const resultView = document.getElementById('result-view');
-    
+
     // Reset result view
     if (resultView) resultView.style.display = 'none';
 
     if (editorState.showingResult) {
+        // Show both editor and result views - editor for continued editing, result for preview
         editorControls.style.display = 'block'; // Keep controls visible
-        editorCanvas.style.display = 'none';
+        editorCanvas.style.display = 'block';   // Show editor canvas with baked image
         if (aiView) aiView.style.display = 'none';
         if (resultView) resultView.style.display = 'block';
+        
+        // Draw the editor content (baked image on t-shirt)
+        if (editorState.tshirtImage && editorState.designImage) {
+            drawEditor();
+        }
         return;
     }
-    
+
     if (editorState.mode === 'upload' && editorState.designImage) {
         // Show editor controls and canvas, hide AI view
         editorControls.style.display = 'block';
         editorCanvas.style.display = 'block';
         if (aiView) aiView.style.display = 'none';
-        
+
         // Make sure we have the current t-shirt image
         if (!editorState.tshirtImage) {
             const tshirtImg = new Image();
@@ -112,7 +118,7 @@ function updatePreviewMode() {
         editorControls.style.display = 'none';
         editorCanvas.style.display = 'none';
         if (aiView) aiView.style.display = 'block';
-        
+
         const designLayer = document.getElementById('design-image');
         if (designLayer) {
             designLayer.style.opacity = editorState.designImage ? '1' : '0';
@@ -463,44 +469,47 @@ function calculateDesignPosition() {
 
 function drawEditor() {
     if (!editorState.tshirtImage || !editorState.designImage || !ctx) return;
-    
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Draw t-shirt background
     ctx.drawImage(editorState.tshirtImage, 0, 0, canvas.width, canvas.height);
-    
+
     // Calculate scaled position for canvas
     const scaleX = canvas.width / (editorState.tshirtImage.naturalWidth || 500);
     const scaleY = canvas.height / (editorState.tshirtImage.naturalHeight || 600);
-    
+
     const canvasX = editorState.designX * scaleX;
     const canvasY = editorState.designY * scaleY;
     const canvasWidth = editorState.designWidth * scaleX;
     const canvasHeight = editorState.designHeight * scaleY;
-    
+
     // Draw design
     ctx.drawImage(editorState.designImage, canvasX, canvasY, canvasWidth, canvasHeight);
-    
-    // Draw selection border
-    ctx.strokeStyle = '#fafafa';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
-    ctx.setLineDash([]);
-    
-    // Draw corner handles
-    const handleSize = 6;
-    ctx.fillStyle = '#fafafa';
-    const corners = [
-        { x: canvasX, y: canvasY },
-        { x: canvasX + canvasWidth, y: canvasY },
-        { x: canvasX, y: canvasY + canvasHeight },
-        { x: canvasX + canvasWidth, y: canvasY + canvasHeight }
-    ];
-    
-    corners.forEach(corner => {
-        ctx.fillRect(corner.x - handleSize/2, corner.y - handleSize/2, handleSize, handleSize);
-    });
+
+    // Only draw selection border if we're not showing the baked result
+    if (!editorState.showingResult) {
+        // Draw selection border
+        ctx.strokeStyle = '#fafafa';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        ctx.setLineDash([]);
+
+        // Draw corner handles
+        const handleSize = 6;
+        ctx.fillStyle = '#fafafa';
+        const corners = [
+            { x: canvasX, y: canvasY },
+            { x: canvasX + canvasWidth, y: canvasY },
+            { x: canvasX, y: canvasY + canvasHeight },
+            { x: canvasX + canvasWidth, y: canvasY + canvasHeight }
+        ];
+
+        corners.forEach(corner => {
+            ctx.fillRect(corner.x - handleSize/2, corner.y - handleSize/2, handleSize, handleSize);
+        });
+    }
 }
 
 function startDrag(e) {
@@ -615,26 +624,26 @@ async function bakeDesign() {
         if (response.ok) {
             setLoading(false);
             showToast("Design baked successfully!", "success");
-            
+
             const imageUrl = `http://localhost:5000${data.image_url}`;
-            
+
             // 1. Store result
             generatedHistory.push({
                 timestamp: new Date().toISOString(),
                 image: imageUrl
             });
-            
+
             // Store filename for VTON
             currentBakedFilename = data.filename;
             if (vtonBtn) {
                 vtonBtn.disabled = false;
             }
-            
+
             // 2. Update UI to show result
             const resultImg = document.getElementById('result-image');
             const vtonImg = document.getElementById('vton-image');
             const controls = document.getElementById('slideshow-controls');
-            
+
             if (resultImg) {
                 resultImg.src = imageUrl;
                 resultImg.classList.add('active');
@@ -648,7 +657,28 @@ async function bakeDesign() {
             if (controls) {
                 controls.style.display = 'none'; // Hide controls until VTON is done
             }
-            
+
+            // 3. Also update the editor to show the baked image as the new design
+            const bakedImg = new Image();
+            bakedImg.crossOrigin = 'anonymous';
+            bakedImg.onload = () => {
+                // Update editor state with the baked image
+                editorState.designImage = bakedImg;
+                
+                // Update the editor canvas to show the baked image
+                if (!editorState.tshirtImage) {
+                    const tshirtImg = new Image();
+                    tshirtImg.onload = () => {
+                        editorState.tshirtImage = tshirtImg;
+                        drawEditor();
+                    };
+                    tshirtImg.src = tshirtBackground.src;
+                } else {
+                    drawEditor();
+                }
+            };
+            bakedImg.src = imageUrl;
+
             editorState.showingResult = true;
             updatePreviewMode();
 

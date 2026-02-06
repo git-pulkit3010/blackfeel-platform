@@ -285,4 +285,4 @@ def api_remove_bg():
 
 if __name__ == '__main__':
     # Threaded=True helps prevent single requests from blocking the server
-    app.run(debug=True, port=5000, threaded=True)
+    app.run(debug=True, port=5001, threaded=True)
