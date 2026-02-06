@@ -1,3 +1,4 @@
+// script.js
 // --- CONSTANTS & STATE ---
 const DEFAULT_IMAGE = ""; // No default design
 const designImage = document.getElementById('design-image');
@@ -58,7 +59,9 @@ window.switchSlide = function(index) {
 function switchTab(mode) {
     // Update Buttons
     document.querySelectorAll('.tab-trigger').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    // Handle programmatic switching where event might not exist or target the wrong element
+    const activeBtn = document.querySelector(`.tab-trigger[onclick="switchTab('${mode}')"]`);
+    if(activeBtn) activeBtn.classList.add('active');
 
     // Update Content
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -117,9 +120,11 @@ function updatePreviewMode() {
     }
 }
 
-// --- AI GENERATION SIMULATION ---
-function generateDesign() {
+// --- AI GENERATION ---
+async function generateDesign() {
     const prompt = promptInput.value.trim();
+    const styleSelect = document.getElementById('style-select');
+    const style = styleSelect ? styleSelect.value : 'realistic';
 
     if (!prompt) {
         showToast("Please enter a prompt first.", "error");
@@ -128,39 +133,100 @@ function generateDesign() {
     }
 
     // Start Loading
-    setLoading(true, "Generating design...");
+    setLoading(true, "Generating design with AI...");
 
-    // Simulate API Latency (2 seconds)
-    setTimeout(() => {
-        // Generate a seed from prompt to make it feel deterministic (same prompt = same image)
-        const seed = prompt.replace(/\s/g, '').toLowerCase();
-        // Using picsum to simulate generated result. 
-        const newImageUrl = `https://picsum.photos/seed/${seed}/800/800.jpg`;
+    try {
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                style: style
+            })
+        });
 
-        // Update Image
-        updateAIimage(newImageUrl);
+        const data = await response.json();
+        
+        // --- ADD DEBUG LOGGING ---
+        console.log("AI Generation Response:", data); 
 
+        if (response.ok && data.success) {
+            const imageUrl = data.image_url;
+
+            // Safety check
+            if (typeof imageUrl !== 'string') {
+                throw new Error("Received invalid image data type: " + typeof imageUrl);
+            }
+
+            // Create Image Object
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                // 1. Set as design image
+                editorState.designImage = img;
+
+                // 2. Switch to Editor Mode
+                switchTab('upload');
+
+                // 3. Reset scaling/position
+                editorState.designScale = 0.4;
+                document.getElementById('scale').value = 40;
+                document.getElementById('scaleValue').textContent = '40';
+                editorState.designPosition = 'manual';
+                editorState.designX = 0;
+                editorState.designY = 0;
+
+                // Ensure tshirt image is loaded
+                if (!editorState.tshirtImage) {
+                    const tshirtImg = new Image();
+                    tshirtImg.onload = () => {
+                        editorState.tshirtImage = tshirtImg;
+                        calculateDesignPosition();
+                        drawEditor();
+                        setLoading(false);
+                        showToast("Design generated! You can now edit it.");
+                    };
+                    tshirtImg.src = tshirtBackground.src;
+                } else {
+                    calculateDesignPosition();
+                    drawEditor();
+                    setLoading(false);
+                    showToast("Design generated! You can now edit it.");
+                }
+            };
+
+            // Handle image loading errors
+            img.onerror = () => {
+                setLoading(false);
+                showToast("Failed to load generated image", "error");
+            };
+
+            img.src = imageUrl;
+
+        } else {
+            throw new Error(data.error || "Generation failed");
+        }
+
+    } catch (error) {
+        console.error("Generation error:", error);
         setLoading(false);
-        showToast("Design generated successfully!");
-    }, 2000);
+        showToast(`Error: ${error.message}`, "error");
+    }
 }
 
 function updateAIimage(url) {
+   // This function is effectively replaced by the logic inside generateDesign 
+   // that switches tabs, but we keep it if you switch back to AI tab.
     const designLayer = document.getElementById('design-image');
     if (!designLayer) return;
     
     designLayer.style.opacity = '0';
-    
-    const img = new Image();
-    img.onload = () => {
-        designLayer.src = url;
-        designLayer.style.opacity = '1';
-        
-        // Store the image for editor mode
-        editorState.designImage = img;
-    };
-    img.crossOrigin = 'anonymous';
-    img.src = url;
+    designLayer.src = url;
+    designLayer.onload = () => {
+         designLayer.style.opacity = '1';
+    }
 }
 
 // --- IMAGE UPLOAD & EDITOR FUNCTIONALITY ---

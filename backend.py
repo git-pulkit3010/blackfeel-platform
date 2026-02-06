@@ -1,10 +1,8 @@
 # backend.py
-"""
-Flask Backend for T-Shirt Design Editor
-"""
-
 import os
 import io
+import base64
+import json
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from PIL import Image
@@ -16,22 +14,33 @@ from datetime import datetime
 
 load_dotenv()
 
-# --- CHANGE 1: Point static_folder to current directory ---
-app = Flask(__name__, static_url_path='', static_folder='.')
+# --- CONFIGURATION ---
+# We disable default static handling to serve files from root manually
+app = Flask(__name__, static_folder=None)
 CORS(app)
 
-# Verify API Key
+# Verify API Keys
 FAL_KEY = os.getenv("FAL_KEY")
-if not FAL_KEY:
-    print("❌ FAL_KEY not found in .env file")
-
+OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
 UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+AI_GEN_DIR = "ai_generated_images"
 
-# --- CHANGE 2: Add Route to serve Frontend ---
+for d in [UPLOAD_DIR, AI_GEN_DIR]:
+    os.makedirs(d, exist_ok=True)
+
+# ============ ROUTING (The Fix) ============
+
 @app.route('/')
-def serve_frontend():
+def serve_index():
     return send_file('index.html')
+
+# This catches all file requests (style.css, script.js, images/...)
+@app.route('/<path:path>')
+def serve_static(path):
+    # Security: prevent traversing up directories
+    if ".." in path or path.startswith("/"):
+        return jsonify({"error": "Invalid path"}), 400
+    return send_from_directory('.', path)
 
 # ============ UTILITY FUNCTIONS ============
 
@@ -41,243 +50,239 @@ def remove_background_local(image_pil, description="image"):
         cleaned = remove(image_rgba)
         return cleaned
     except Exception as e:
-        raise Exception(f"Background removal failed for {description}: {str(e)}")
+        print(f"Background removal error: {e}")
+        return image_pil.convert("RGBA") # Fallback to original if rembg fails
 
 def create_composite_with_transform(tshirt_img, design_img, x, y, width, height):
-    try:
-        tshirt = tshirt_img.convert("RGBA")
-        design = design_img.convert("RGBA")
-        
-        # Resize design to exact target size
-        design = design.resize((width, height), Image.Resampling.LANCZOS)
-        
-        # Create composite
-        composite = tshirt.copy()
-        composite.paste(design, (x, y), design)
-        
-        # Create mask
-        mask = Image.new("L", tshirt.size, 0)
-        design_mask = design.split()[3]
-        mask.paste(design_mask, (x, y))
-        
-        return composite, mask
-    except Exception as e:
-        raise Exception(f"Composite creation failed: {str(e)}")
+    tshirt = tshirt_img.convert("RGBA")
+    design = design_img.convert("RGBA")
+    design = design.resize((width, height), Image.Resampling.LANCZOS)
+    
+    composite = tshirt.copy()
+    composite.paste(design, (x, y), design)
+    
+    mask = Image.new("L", tshirt.size, 0)
+    design_mask = design.split()[3]
+    mask.paste(design_mask, (x, y))
+    
+    return composite, mask
 
 def bake_with_fal(composite_pil, mask_pil, position_description="center"):
+    composite_bytes = io.BytesIO()
+    mask_bytes = io.BytesIO()
+    composite_pil.save(composite_bytes, format="PNG")
+    mask_pil.save(mask_bytes, format="PNG")
+    
+    print("[Bake] Uploading to Fal...")
+    composite_url = fal_client.upload(composite_bytes.getvalue(), "image/png")
+    mask_url = fal_client.upload(mask_bytes.getvalue(), "image/png")
+    
+    pos_text = position_description.replace("_", " ")
+    prompt = (
+        f"Blend and integrate the existing graphic design at the {pos_text} "
+        "onto the t-shirt fabric. Keep the exact design. "
+        "Only adjust lighting and shadows to match fabric."
+    )
+    
+    print("[Bake] Calling fal-ai/flux-lora/inpainting...")
+    result = fal_client.subscribe(
+        "fal-ai/flux-lora/inpainting",
+        arguments={
+            "prompt": prompt,
+            "image_url": composite_url,
+            "mask_url": mask_url,
+            "guidance_scale": 1.2,
+            "strength": 0.3,
+            "enable_safety_checker": False,
+        }
+    )
+    response = requests.get(result["images"][0]["url"])
+    return response.content
+
+# ============ API ROUTES ============
+
+@app.route('/api/generate', methods=['POST'])
+def generate_design():
     try:
-        composite_bytes = io.BytesIO()
-        mask_bytes = io.BytesIO()
-        composite_pil.save(composite_bytes, format="PNG")
-        mask_pil.save(mask_bytes, format="PNG")
+        data = request.json
+        user_prompt = data.get('prompt')
+        style = data.get('style', 'realistic')
         
-        print("[Bake] Uploading to Fal...")
-        composite_url = fal_client.upload(composite_bytes.getvalue(), "image/png")
-        mask_url = fal_client.upload(mask_bytes.getvalue(), "image/png")
+        if not user_prompt: return jsonify({"error": "No prompt"}), 400
+
+        style_modifiers = {
+            "realistic": "photorealistic, highly detailed, 8k",
+            "vector": "vector art, flat design, svg style, clean lines, no background",
+            "anime": "anime style, manga, vibrant colors",
+            "vintage": "retro, vintage aesthetic, distressed texture, 90s style"
+        }
+        full_prompt = f"{user_prompt}, {style_modifiers.get(style, '')}, isolated on white background"
         
-        pos_text = position_description.replace("_", " ")
-        prompt = (
-            f"Blend and integrate the existing graphic design at the {pos_text} "
-            "onto the t-shirt fabric. Keep the exact design. "
-            "Only adjust lighting and shadows to match fabric."
-        )
+        print(f"[Generate] Requesting: {full_prompt}")
+
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_KEY}",
+            "HTTP-Referer": "http://localhost:5000",
+            "Content-Type": "application/json"
+        }
         
-        print("[Bake] Calling fal-ai/flux-lora/inpainting...")
-        result = fal_client.subscribe(
-            "fal-ai/flux-lora/inpainting",
-            arguments={
-                "prompt": prompt,
-                "image_url": composite_url,
-                "mask_url": mask_url,
-                "guidance_scale": 1.2,
-                "strength": 0.3, # Low strength preserves the original design logo better
-                "enable_safety_checker": False,
+        # OpenRouter Call
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": "google/gemini-2.5-flash-image", # Correct model name
+                "messages": [{"role": "user", "content": full_prompt}],
+                "modalities": ["image", "text"]
             }
         )
         
-        final_url = result["images"][0]["url"]
-        response = requests.get(final_url)
-        return response.content
-    except Exception as e:
-        raise Exception(f"Fal baking failed: {str(e)}")
+        if response.status_code != 200:
+            return jsonify({"error": response.text}), response.status_code
 
-# ============ API ROUTES ============
+        # --- ROBUST PARSING ---
+        result = response.json()
+        try:
+            raw_image = result['choices'][0]['message']['images'][0]
+            
+            # Handle Dictionary Format (Fixes your previous bug)
+            if isinstance(raw_image, dict):
+                if 'url' in raw_image: image_data = raw_image['url']
+                elif 'image_url' in raw_image: 
+                    # Handle nested {'image_url': {'url': '...'}}
+                    if isinstance(raw_image['image_url'], dict):
+                        image_data = raw_image['image_url']['url']
+                    else:
+                        image_data = raw_image['image_url']
+                elif 'b64_json' in raw_image: image_data = f"data:image/png;base64,{raw_image['b64_json']}"
+                else: image_data = str(raw_image)
+            else:
+                image_data = raw_image # It's just a string
+
+        except Exception as e:
+            print(f"[Generate] Parse Error: {result}")
+            return jsonify({"error": "Failed to parse AI response"}), 500
+
+        # Download & Process
+        if image_data.startswith('data:'):
+            header, encoded = image_data.split(',', 1)
+            img_bytes = base64.b64decode(encoded)
+        else:
+            img_bytes = requests.get(image_data).content
+
+        img = Image.open(io.BytesIO(img_bytes))
+        img_clean = remove_background_local(img, "generated")
+        
+        # Save
+        filename = f"ai_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        path = os.path.join(AI_GEN_DIR, filename)
+        img_clean.save(path, format='PNG')
+        
+        return jsonify({
+            "success": True, 
+            "image_url": f"/ai_generated_images/{filename}",
+            "filename": filename
+        })
+
+    except Exception as e:
+        print(f"[Generate] Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/bake', methods=['POST'])
 def bake_design():
     try:
-        if 'tshirt_image' not in request.files or 'design_image' not in request.files:
-            return jsonify({"error": "Missing images"}), 400
-        
         tshirt_file = request.files['tshirt_image']
         design_file = request.files['design_image']
         
-        # Parse params
-        position = request.form.get('position', 'center')
-        x = int(float(request.form.get('x', 0))) # Handle float strings
+        # Parse params with defaults
+        x = int(float(request.form.get('x', 0)))
         y = int(float(request.form.get('y', 0)))
-        width = int(float(request.form.get('width', 200)))
-        height = int(float(request.form.get('height', 200)))
-        
-        print(f"[API] Baking: pos={position} x={x} y={y} w={width} h={height}")
+        w = int(float(request.form.get('width', 200)))
+        h = int(float(request.form.get('height', 200)))
+        pos = request.form.get('position', 'center')
 
-        tshirt_pil = Image.open(io.BytesIO(tshirt_file.read()))
-        design_pil = Image.open(io.BytesIO(design_file.read()))
-        
-        # 1. Clean Backgrounds
-        tshirt_clean = remove_background_local(tshirt_pil, "t-shirt")
-        design_clean = remove_background_local(design_pil, "design")
-        
-        # 2. Composite
-        composite, mask = create_composite_with_transform(tshirt_clean, design_clean, x, y, width, height)
-        
-        # 3. Bake
-        final_image_bytes = bake_with_fal(composite, mask, position)
-        
-        # --- NEW: Remove background from the final result ---
-        print("[API] Removing background from final baked result...")
-        final_pil = Image.open(io.BytesIO(final_image_bytes))
-        final_clean = remove_background_local(final_pil, "final result")
-        
-        # Convert back to bytes for saving
-        img_byte_arr = io.BytesIO()
-        final_clean.save(img_byte_arr, format='PNG')
-        final_image_bytes = img_byte_arr.getvalue()
-        # ----------------------------------------------------
+        tshirt = Image.open(tshirt_file)
+        design = Image.open(design_file)
 
-        # 4. Save
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = f"tshirt_final_{timestamp}.png"
-        output_path = os.path.join(UPLOAD_DIR, output_filename)
+        # Process
+        t_clean = remove_background_local(tshirt, "shirt")
+        d_clean = remove_background_local(design, "design")
+        comp, mask = create_composite_with_transform(t_clean, d_clean, x, y, w, h)
         
-        with open(output_path, 'wb') as f:
-            f.write(final_image_bytes)
+        # Bake
+        baked_bytes = bake_with_fal(comp, mask, pos)
         
+        # Cleanup Final
+        final_img = Image.open(io.BytesIO(baked_bytes))
+        final_clean = remove_background_local(final_img, "final")
+        
+        # Save
+        filename = f"tshirt_final_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        path = os.path.join(UPLOAD_DIR, filename)
+        final_clean.save(path, format='PNG')
+
         return jsonify({
             "success": True,
-            "image_url": f"/api/download/{output_filename}",
-            "filename": output_filename
-        }), 200
-        
-    except Exception as e:
-        print(f"[API] Error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+            "image_url": f"/uploads/{filename}",
+            "filename": filename
+        })
 
-import json
+    except Exception as e:
+        print(f"[Bake] Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/vton', methods=['POST'])
 def vton_api():
     try:
-        data = request.json
-        filename = data.get('filename')
-        
-        if not filename:
-            return jsonify({"error": "Missing filename"}), 400
-            
+        filename = request.json.get('filename')
         file_path = os.path.join(UPLOAD_DIR, filename)
-        if not os.path.exists(file_path):
-             return jsonify({"error": "File not found"}), 404
+        
+        if not os.path.exists(file_path): return jsonify({"error": "File not found"}), 404
 
-        print(f"[VTON] Uploading {filename} to Fal...")
-        # Upload garment image to Fal
+        print("[VTON] Starting...")
         with open(file_path, "rb") as f:
-            image_data = f.read()
-            garment_url = fal_client.upload(image_data, "image/png")
-            
-        # Upload custom model image to Fal
-        print("[VTON] Uploading custom model image (images/man_model.png) to Fal...")
+            garment_url = fal_client.upload(f.read(), "image/png")
         with open("images/man_model.png", "rb") as f:
-            model_image_data = f.read()
-            model_url = fal_client.upload(model_image_data, "image/jpeg")
+            model_url = fal_client.upload(f.read(), "image/jpeg")
 
-        print(f"[VTON] Calling fal-ai/fashn/tryon/v1.6...")
+        with open('fashn_vton.json', 'r') as f: args = json.load(f)
+        args["garment_image"] = garment_url
+        args["model_image"] = model_url
         
-        # Load config from file
-        with open('fashn_vton.json', 'r') as f:
-            arguments = json.load(f)
-            
-        # OVERRIDE garment_image and model_image
-        arguments["garment_image"] = garment_url
-        arguments["model_image"] = model_url
+        result = fal_client.subscribe("fal-ai/fashn/tryon/v1.6", arguments=args)
         
-        result = fal_client.subscribe(
-            "fal-ai/fashn/tryon/v1.6",
-            arguments=arguments
-        )
+        # Download & Clean
+        resp = requests.get(result["images"][0]["url"])
+        vton_img = Image.open(io.BytesIO(resp.content))
+        vton_clean = remove_background_local(vton_img, "vton")
         
-        final_url = result["images"][0]["url"]
-        print(f"[VTON] Success! Result: {final_url}")
-        
-        # --- Save Locally ---
-        # 1. Create VTON dir
-        vton_dir = os.path.join(UPLOAD_DIR, 'VTON')
-        os.makedirs(vton_dir, exist_ok=True)
-        
-        # 2. Extract timestamp/ID from input filename
-        # Expected: tshirt_final_{timestamp}.png
-        # We want: vton_{timestamp}.png
-        try:
-            # simple parsing: remove "tshirt_final_" prefix and keep extension or replace it
-            if filename.startswith("tshirt_final_"):
-                timestamp_part = filename.replace("tshirt_final_", "")
-                vton_filename = f"vton_{timestamp_part}"
-            else:
-                # Fallback if naming convention differs
-                vton_filename = f"vton_{filename}"
-        except Exception:
-             vton_filename = f"vton_{filename}"
-
-        # 3. Download and process the VTON result
-        response = requests.get(final_url)
-        
-        # Remove background from the VTON result
-        print("[VTON] Removing background from VTON result...")
-        vton_pil = Image.open(io.BytesIO(response.content))
-        vton_clean = remove_background_local(vton_pil, "VTON result")
-        
-        # Convert back to bytes for saving
-        img_byte_arr = io.BytesIO()
-        vton_clean.save(img_byte_arr, format='PNG')
-        processed_content = img_byte_arr.getvalue()
-        
-        vton_path = os.path.join(vton_dir, vton_filename)
-        
-        with open(vton_path, "wb") as f:
-            f.write(processed_content)
-            
-        print(f"[VTON] Saved locally to {vton_path}")
+        vton_filename = f"vton_{filename}"
+        vton_path = os.path.join(UPLOAD_DIR, "VTON", vton_filename)
+        os.makedirs(os.path.dirname(vton_path), exist_ok=True)
+        vton_clean.save(vton_path, format="PNG")
 
         return jsonify({
             "success": True,
-            "image_url": f"/api/download/vton/{vton_filename}"
-        }), 200
-        
+            "image_url": f"/uploads/VTON/{vton_filename}"
+        })
+
     except Exception as e:
-        print(f"[VTON] Error: {str(e)}")
+        print(f"[VTON] Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/remove-bg', methods=['POST'])
-def remove_bg_api():
+def api_remove_bg():
     try:
         file = request.files['image']
-        img_pil = Image.open(io.BytesIO(file.read()))
-        cleaned = remove_background_local(img_pil)
-        
-        img_byte_arr = io.BytesIO()
-        cleaned.save(img_byte_arr, format='PNG')
-        img_byte_arr.seek(0)
-        return send_file(img_byte_arr, mimetype='image/png')
+        img = Image.open(io.BytesIO(file.read()))
+        cleaned = remove_background_local(img)
+        buff = io.BytesIO()
+        cleaned.save(buff, format="PNG")
+        buff.seek(0)
+        return send_file(buff, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/download/<filename>', methods=['GET'])
-def download_image(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
-
-@app.route('/api/download/vton/<filename>', methods=['GET'])
-def download_vton_image(filename):
-    vton_dir = os.path.join(UPLOAD_DIR, 'VTON')
-    return send_from_directory(vton_dir, filename)
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Threaded=True helps prevent single requests from blocking the server
+    app.run(debug=True, port=5000, threaded=True)
