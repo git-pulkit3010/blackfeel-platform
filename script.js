@@ -39,9 +39,11 @@ window.switchSlide = function(index) {
     slides.forEach((slide, i) => {
         if (i === index) {
             slide.style.opacity = '1';
+            slide.style.zIndex = '10';
             slide.classList.add('active');
         } else {
             slide.style.opacity = '0';
+            slide.style.zIndex = '5';
             slide.classList.remove('active');
         }
     });
@@ -83,16 +85,12 @@ function updatePreviewMode() {
     if (resultView) resultView.style.display = 'none';
 
     if (editorState.showingResult) {
-        // Show both editor and result views - editor for continued editing, result for preview
-        editorControls.style.display = 'block'; // Keep controls visible
-        editorCanvas.style.display = 'block';   // Show editor canvas with baked image
+        // Show result view and hide editor layers
+        editorControls.style.display = 'block'; 
+        editorCanvas.style.display = 'none';   // Hide canvas so it doesn't block the slideshow
         if (aiView) aiView.style.display = 'none';
         if (resultView) resultView.style.display = 'block';
         
-        // Draw the editor content (baked image on t-shirt)
-        if (editorState.tshirtImage && editorState.designImage) {
-            drawEditor();
-        }
         return;
     }
 
@@ -625,7 +623,8 @@ async function bakeDesign() {
             setLoading(false);
             showToast("Design baked successfully!", "success");
 
-            const imageUrl = `http://localhost:5000${data.image_url}`;
+            // Use relative URL directly from backend response
+            const imageUrl = data.image_url;
 
             // 1. Store result
             generatedHistory.push({
@@ -644,21 +643,21 @@ async function bakeDesign() {
             const vtonImg = document.getElementById('vton-image');
             const controls = document.getElementById('slideshow-controls');
 
+            // Reset slides state
             if (resultImg) {
                 resultImg.src = imageUrl;
-                resultImg.classList.add('active');
-                resultImg.style.opacity = '1';
             }
             if (vtonImg) {
                 vtonImg.src = "";
-                vtonImg.classList.remove('active');
-                vtonImg.style.opacity = '0';
             }
             if (controls) {
                 controls.style.display = 'none'; // Hide controls until VTON is done
             }
 
-            // 3. Also update the editor to show the baked image as the new design
+            // Initialize to the first slide (Baked Image)
+            window.switchSlide(0);
+
+            // 3. Also update the editor state so if we return to editing, it's there
             const bakedImg = new Image();
             bakedImg.crossOrigin = 'anonymous';
             bakedImg.onload = () => {
