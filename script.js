@@ -1,3 +1,4 @@
+// script.js
 // --- CONSTANTS & STATE ---
 const DEFAULT_IMAGE = ""; // No default design
 const designImage = document.getElementById('design-image');
@@ -38,9 +39,11 @@ window.switchSlide = function(index) {
     slides.forEach((slide, i) => {
         if (i === index) {
             slide.style.opacity = '1';
+            slide.style.zIndex = '10';
             slide.classList.add('active');
         } else {
             slide.style.opacity = '0';
+            slide.style.zIndex = '5';
             slide.classList.remove('active');
         }
     });
@@ -58,7 +61,9 @@ window.switchSlide = function(index) {
 function switchTab(mode) {
     // Update Buttons
     document.querySelectorAll('.tab-trigger').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    // Handle programmatic switching where event might not exist or target the wrong element
+    const activeBtn = document.querySelector(`.tab-trigger[onclick="switchTab('${mode}')"]`);
+    if(activeBtn) activeBtn.classList.add('active');
 
     // Update Content
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -75,24 +80,26 @@ function updatePreviewMode() {
     const editorCanvas = document.getElementById('editor-canvas');
     const aiView = document.getElementById('ai-view');
     const resultView = document.getElementById('result-view');
-    
+
     // Reset result view
     if (resultView) resultView.style.display = 'none';
 
     if (editorState.showingResult) {
-        editorControls.style.display = 'block'; // Keep controls visible
-        editorCanvas.style.display = 'none';
+        // Show result view and hide editor layers
+        editorControls.style.display = 'block'; 
+        editorCanvas.style.display = 'none';   // Hide canvas so it doesn't block the slideshow
         if (aiView) aiView.style.display = 'none';
         if (resultView) resultView.style.display = 'block';
+        
         return;
     }
-    
+
     if (editorState.mode === 'upload' && editorState.designImage) {
         // Show editor controls and canvas, hide AI view
         editorControls.style.display = 'block';
         editorCanvas.style.display = 'block';
         if (aiView) aiView.style.display = 'none';
-        
+
         // Make sure we have the current t-shirt image
         if (!editorState.tshirtImage) {
             const tshirtImg = new Image();
@@ -109,7 +116,7 @@ function updatePreviewMode() {
         editorControls.style.display = 'none';
         editorCanvas.style.display = 'none';
         if (aiView) aiView.style.display = 'block';
-        
+
         const designLayer = document.getElementById('design-image');
         if (designLayer) {
             designLayer.style.opacity = editorState.designImage ? '1' : '0';
@@ -117,9 +124,11 @@ function updatePreviewMode() {
     }
 }
 
-// --- AI GENERATION SIMULATION ---
-function generateDesign() {
+// --- AI GENERATION ---
+async function generateDesign() {
     const prompt = promptInput.value.trim();
+    const styleSelect = document.getElementById('style-select');
+    const style = styleSelect ? styleSelect.value : 'realistic';
 
     if (!prompt) {
         showToast("Please enter a prompt first.", "error");
@@ -128,39 +137,100 @@ function generateDesign() {
     }
 
     // Start Loading
-    setLoading(true, "Generating design...");
+    setLoading(true, "Generating design with AI...");
 
-    // Simulate API Latency (2 seconds)
-    setTimeout(() => {
-        // Generate a seed from prompt to make it feel deterministic (same prompt = same image)
-        const seed = prompt.replace(/\s/g, '').toLowerCase();
-        // Using picsum to simulate generated result. 
-        const newImageUrl = `https://picsum.photos/seed/${seed}/800/800.jpg`;
+    try {
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                style: style
+            })
+        });
 
-        // Update Image
-        updateAIimage(newImageUrl);
+        const data = await response.json();
+        
+        // --- ADD DEBUG LOGGING ---
+        console.log("AI Generation Response:", data); 
 
+        if (response.ok && data.success) {
+            const imageUrl = data.image_url;
+
+            // Safety check
+            if (typeof imageUrl !== 'string') {
+                throw new Error("Received invalid image data type: " + typeof imageUrl);
+            }
+
+            // Create Image Object
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                // 1. Set as design image
+                editorState.designImage = img;
+
+                // 2. Switch to Editor Mode
+                switchTab('upload');
+
+                // 3. Reset scaling/position
+                editorState.designScale = 0.4;
+                document.getElementById('scale').value = 40;
+                document.getElementById('scaleValue').textContent = '40';
+                editorState.designPosition = 'manual';
+                editorState.designX = 0;
+                editorState.designY = 0;
+
+                // Ensure tshirt image is loaded
+                if (!editorState.tshirtImage) {
+                    const tshirtImg = new Image();
+                    tshirtImg.onload = () => {
+                        editorState.tshirtImage = tshirtImg;
+                        calculateDesignPosition();
+                        drawEditor();
+                        setLoading(false);
+                        showToast("Design generated! You can now edit it.");
+                    };
+                    tshirtImg.src = tshirtBackground.src;
+                } else {
+                    calculateDesignPosition();
+                    drawEditor();
+                    setLoading(false);
+                    showToast("Design generated! You can now edit it.");
+                }
+            };
+
+            // Handle image loading errors
+            img.onerror = () => {
+                setLoading(false);
+                showToast("Failed to load generated image", "error");
+            };
+
+            img.src = imageUrl;
+
+        } else {
+            throw new Error(data.error || "Generation failed");
+        }
+
+    } catch (error) {
+        console.error("Generation error:", error);
         setLoading(false);
-        showToast("Design generated successfully!");
-    }, 2000);
+        showToast(`Error: ${error.message}`, "error");
+    }
 }
 
 function updateAIimage(url) {
+   // This function is effectively replaced by the logic inside generateDesign 
+   // that switches tabs, but we keep it if you switch back to AI tab.
     const designLayer = document.getElementById('design-image');
     if (!designLayer) return;
     
     designLayer.style.opacity = '0';
-    
-    const img = new Image();
-    img.onload = () => {
-        designLayer.src = url;
-        designLayer.style.opacity = '1';
-        
-        // Store the image for editor mode
-        editorState.designImage = img;
-    };
-    img.crossOrigin = 'anonymous';
-    img.src = url;
+    designLayer.src = url;
+    designLayer.onload = () => {
+         designLayer.style.opacity = '1';
+    }
 }
 
 // --- IMAGE UPLOAD & EDITOR FUNCTIONALITY ---
@@ -397,44 +467,47 @@ function calculateDesignPosition() {
 
 function drawEditor() {
     if (!editorState.tshirtImage || !editorState.designImage || !ctx) return;
-    
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Draw t-shirt background
     ctx.drawImage(editorState.tshirtImage, 0, 0, canvas.width, canvas.height);
-    
+
     // Calculate scaled position for canvas
     const scaleX = canvas.width / (editorState.tshirtImage.naturalWidth || 500);
     const scaleY = canvas.height / (editorState.tshirtImage.naturalHeight || 600);
-    
+
     const canvasX = editorState.designX * scaleX;
     const canvasY = editorState.designY * scaleY;
     const canvasWidth = editorState.designWidth * scaleX;
     const canvasHeight = editorState.designHeight * scaleY;
-    
+
     // Draw design
     ctx.drawImage(editorState.designImage, canvasX, canvasY, canvasWidth, canvasHeight);
-    
-    // Draw selection border
-    ctx.strokeStyle = '#fafafa';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
-    ctx.setLineDash([]);
-    
-    // Draw corner handles
-    const handleSize = 6;
-    ctx.fillStyle = '#fafafa';
-    const corners = [
-        { x: canvasX, y: canvasY },
-        { x: canvasX + canvasWidth, y: canvasY },
-        { x: canvasX, y: canvasY + canvasHeight },
-        { x: canvasX + canvasWidth, y: canvasY + canvasHeight }
-    ];
-    
-    corners.forEach(corner => {
-        ctx.fillRect(corner.x - handleSize/2, corner.y - handleSize/2, handleSize, handleSize);
-    });
+
+    // Only draw selection border if we're not showing the baked result
+    if (!editorState.showingResult) {
+        // Draw selection border
+        ctx.strokeStyle = '#fafafa';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        ctx.setLineDash([]);
+
+        // Draw corner handles
+        const handleSize = 6;
+        ctx.fillStyle = '#fafafa';
+        const corners = [
+            { x: canvasX, y: canvasY },
+            { x: canvasX + canvasWidth, y: canvasY },
+            { x: canvasX, y: canvasY + canvasHeight },
+            { x: canvasX + canvasWidth, y: canvasY + canvasHeight }
+        ];
+
+        corners.forEach(corner => {
+            ctx.fillRect(corner.x - handleSize/2, corner.y - handleSize/2, handleSize, handleSize);
+        });
+    }
 }
 
 function startDrag(e) {
@@ -549,40 +622,62 @@ async function bakeDesign() {
         if (response.ok) {
             setLoading(false);
             showToast("Design baked successfully!", "success");
-            
-            const imageUrl = `http://localhost:5000${data.image_url}`;
-            
+
+            // Use relative URL directly from backend response
+            const imageUrl = data.image_url;
+
             // 1. Store result
             generatedHistory.push({
                 timestamp: new Date().toISOString(),
                 image: imageUrl
             });
-            
+
             // Store filename for VTON
             currentBakedFilename = data.filename;
             if (vtonBtn) {
                 vtonBtn.disabled = false;
             }
-            
+
             // 2. Update UI to show result
             const resultImg = document.getElementById('result-image');
             const vtonImg = document.getElementById('vton-image');
             const controls = document.getElementById('slideshow-controls');
-            
+
+            // Reset slides state
             if (resultImg) {
                 resultImg.src = imageUrl;
-                resultImg.classList.add('active');
-                resultImg.style.opacity = '1';
             }
             if (vtonImg) {
                 vtonImg.src = "";
-                vtonImg.classList.remove('active');
-                vtonImg.style.opacity = '0';
             }
             if (controls) {
                 controls.style.display = 'none'; // Hide controls until VTON is done
             }
-            
+
+            // Initialize to the first slide (Baked Image)
+            window.switchSlide(0);
+
+            // 3. Also update the editor state so if we return to editing, it's there
+            const bakedImg = new Image();
+            bakedImg.crossOrigin = 'anonymous';
+            bakedImg.onload = () => {
+                // Update editor state with the baked image
+                editorState.designImage = bakedImg;
+                
+                // Update the editor canvas to show the baked image
+                if (!editorState.tshirtImage) {
+                    const tshirtImg = new Image();
+                    tshirtImg.onload = () => {
+                        editorState.tshirtImage = tshirtImg;
+                        drawEditor();
+                    };
+                    tshirtImg.src = tshirtBackground.src;
+                } else {
+                    drawEditor();
+                }
+            };
+            bakedImg.src = imageUrl;
+
             editorState.showingResult = true;
             updatePreviewMode();
 
